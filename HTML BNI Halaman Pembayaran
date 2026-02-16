@@ -121,7 +121,7 @@
         }
 
         .copy-btn:hover {
-            background: #004a94;
+            background: #F15A25;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 94, 184, 0.3);
         }
