@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halaman Pembayaran</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: white;
+            min-height: 100vh;
+        }
+
+        .payment-container {
+            background: white;
+            width: 100%;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .payment-header {
+            background: white;
+            color: #212529;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .payment-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .payment-header p {
+            opacity: 0.7;
+            font-size: 14px;
+        }
+
+        .bank-logo {
+            width: 120px;
+            height: auto;
+            margin: 0 auto 15px;
+            display: block;
+        }
+
+        .payment-body {
+            padding: 30px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 18px;
+            color: #212529;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .account-number {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px dashed #005eb8;
+            margin-top: 10px;
+        }
+
+        .account-number-text {
+            font-size: 24px;
+            font-weight: bold;
+            color: #005eb8;
+            letter-spacing: 2px;
+        }
+
+        .copy-btn {
+            background: #005eb8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .copy-btn:hover {
+            background: #004a94;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 94, 184, 0.3);
+        }
+
+        .copy-btn:active {
+            transform: translateY(0);
+        }
+
+        .copy-btn.copied {
+            background: #28a745;
+        }
+
+        .whatsapp-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 25px;
+            box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+        }
+
+        .whatsapp-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4);
+        }
+
+        .whatsapp-btn:active {
+            transform: translateY(0);
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .notice {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #856404;
+            text-align: center;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e9ecef;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 480px) {
+            .account-number {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .account-number-text {
+                font-size: 20px;
+            }
+
+            .copy-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="payment-container">
+        <div class="payment-header">
+            <img src="https://res.cloudinary.com/dho4tdzhr/image/upload/2_fwdnmc.png" alt="BCA Logo" class="bank-logo">
+            <h1>Informasi Pembayaran</h1>
+            <p>Silakan transfer ke rekening berikut</p>
+        </div>
+
+        <div class="payment-body">
+            
+            <div class="info-box">
+    <div class="info-label">Order ID</div>
+    <div class="info-value" id="orderIdDisplay">-</div>
+</div>
+
+            <div class="info-box">
+                <div class="info-label">Bank</div>
+                <div class="info-value">Bank Mandiri</div>
+            </div>
+
+            <div class="info-box">
+                <div class="info-label">Nama Penerima</div>
+                <div class="info-value">GUNAKAN NAMA ANDA</div>
+            </div>
+
+            <div class="info-box">
+                <div class="info-label">Nomor Rekening</div>
+                <div class="account-number">
+                    <span class="account-number-text">GUNAKAN REKENING ANDA</span>
+                    <button class="copy-btn" id="copyBtn" onclick="copyAccountNumber()">
+                        <svg class="icon" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                        Salin
+                    </button>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <div class="info-label">Nominal Pembayaran</div>
+                <div class="account-number">
+                    <span class="account-number-text">Rp 299.000 (UBAH NOMINAL)</span>
+                    <button class="copy-btn" onclick="copyAmount()">
+                        <svg class="icon" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                        Salin
+                    </button>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <button class="whatsapp-btn" onclick="sendToWhatsApp()">
+                <svg class="icon" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                </svg>
+                Kirim Bukti Transfer
+            </button>
+
+            <div class="notice">
+                💡 Setelah transfer, klik tombol di atas untuk mengirim bukti transfer via WhatsApp
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Ambil data dari URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderId = urlParams.get('order_id') || 'N/A';
+    const customerName = urlParams.get('nama') || '';
+    const customerEmail = urlParams.get('email') || '';
+    const customerWhatsapp = urlParams.get('whatsapp') || '';
+
+    // Tampilkan Order ID di halaman
+    document.getElementById('orderIdDisplay').textContent = orderId;
+
+    function copyAmount() {
+        const amount = '299000';
+        const copyBtn = event.currentTarget;
+        
+        navigator.clipboard.writeText(amount).then(() => {
+            copyBtn.innerHTML = `
+                <svg class="icon" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+                Tersalin!
+            `;
+            copyBtn.classList.add('copied');
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = `
+                    <svg class="icon" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                        Salin
+                    `;
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+        }).catch(err => {
+            alert('Gagal menyalin nominal');
+        });
+    }
+
+    function copyAccountNumber() {
+        const accountNumber = '7935332605';
+        const copyBtn = document.getElementById('copyBtn');
+        
+        navigator.clipboard.writeText(accountNumber).then(() => {
+            copyBtn.innerHTML = `
+                <svg class="icon" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+                Tersalin!
+            `;
+            copyBtn.classList.add('copied');
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = `
+                    <svg class="icon" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                        Salin
+                    `;
+                copyBtn.classList.remove('copied');
+            }, 2000);
+        }).catch(err => {
+            alert('Gagal menyalin nomor rekening');
+        });
+    }
+        
+        
+        // GANTI NOMOR ADMIN
+    function sendToWhatsApp() {
+        const phoneNumber = '628XX-XXX-XXX';
+        
+        // PESAN YANG AKAN DI KIRIMKAN CUSTOMER KE ADMIN ANDA
+        const message = `Halo Admin, saya ingin mengirim bukti transfer pembayaran.
+
+📋 *Data Order:*
+- Order ID: ${orderId}
+- Nama: ${customerName}
+- Email: ${customerEmail}
+- WhatsApp: ${customerWhatsapp}
+- Nominal: Rp 299.000 (GANTI HARGA PRODUK ANDA)
+- Bank Penerima: MANDIRI (7935332605 a.n. Ridwan) (GANTI NOMOR REKENING ANDA)
+
+Saya akan kirim bukti transfer segera.`;
+        
+        const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+    }
+    </script> 
+</body>
+</html>
