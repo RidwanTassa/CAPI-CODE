@@ -1,34 +1,36 @@
+// ===========================
+// GENERATE ORDER ID
+// ===========================
 function generateOrderId() {
   const timestamp = Utilities.formatDate(
     new Date(),
     Session.getScriptTimeZone(),
     "yyyyMMddHHmmss"
   );
-
-
   const uuidShort = Utilities.getUuid().split("-")[0];
-
-
   return `ORD-${timestamp}-${uuidShort}`;
 }
 
-
+// ===========================
+// WEB APP ENDPOINT
+// ===========================
 function doPost(e) {
-  const ss = SpreadsheetApp.openById(
-    "GANTI DENGAN ID GOOGLE SHEET ANDA"
-  );
+  // Gunakan spreadsheet tempat script ini terpasang
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName("Data Order");
-  if (!sheet) sheet = ss.insertSheet("Data Order");
+  
+  // Buat sheet jika belum ada
+  if (!sheet) {
+    sheet = ss.insertSheet("Data Order");
+  }
 
-
+  // Validasi data
   if (!e) {
     return ContentService.createTextOutput("No Data");
   }
 
-
+  // Parse data dari POST request
   let p = {};
-
-
   if (e.postData && e.postData.contents) {
     try {
       p = JSON.parse(e.postData.contents);
@@ -39,90 +41,86 @@ function doPost(e) {
     p = e.parameter || {};
   }
 
-
+  // Generate Order ID dan insert data
   const orderId = generateOrderId();
   const newRow = sheet.getLastRow() + 1;
 
-
-  sheet.getRange(newRow, 1, 1, 14).setValues([[  
-    JSON.stringify(p),
-    new Date(),
-    orderId,
-    p.nama || "",
-    p.email || "",
-    p.whatsapp || "",
-    p.wa_link || "",
-    "",  // Kolom H (product)
-    "",  // Kolom I (harga_barang)
-    "",  // Kolom J (value)
-    "",  // Kolom K (quantity)
-    "",  // Kolom L (action)
-    "",  // Kolom M (status)
-    ""   // Kolom N (time)
+  sheet.getRange(newRow, 1, 1, 14).setValues([[
+    JSON.stringify(p),        // A: Raw payload
+    new Date(),               // B: Waktu order
+    orderId,                  // C: Order ID
+    p.nama || "",             // D: Nama
+    p.email || "",            // E: Email
+    p.whatsapp || "",         // F: WhatsApp
+    p.wa_link || "",          // G: WA Link
+    "",                       // H: Product
+    "",                       // I: Harga barang
+    "",                       // J: Value
+    "",                       // K: Quantity
+    "",                       // L: Action
+    "",                       // M: Status
+    ""                        // N: Time
   ]]);
-
 
   return ContentService
     .createTextOutput("OK")
     .setMimeType(ContentService.MimeType.TEXT);
 }
 
-
+// ===========================
+// ON EDIT TRIGGER
+// ===========================
 function onEditHandler(e) {
- 
   if (!e) return;
-
 
   const sheet = e.source.getActiveSheet();
   if (sheet.getName() !== 'Data Order') return;
-
 
   const range = e.range;
   const row = range.getRow();
   const col = range.getColumn();
 
-
+  // Skip header row
   if (row === 1) return;
 
-
+  // Definisi kolom
   const COL_PRODUCT = 8;   // H
   const COL_ACTION = 12;   // L
   const COL_STATUS = 13;   // M
   const COL_TIME = 14;     // N
 
-
+  // ===========================
+  // AUTO DROPDOWN SAAT ISI PRODUCT
+  // ===========================
   if (col === COL_PRODUCT && range.getValue()) {
-   
     const actionCell = sheet.getRange(row, COL_ACTION);
-   
+    
+    // Set dropdown validation
     const rule = SpreadsheetApp.newDataValidation()
       .requireValueInList(['Leads', 'Purchase'], true)
       .setAllowInvalid(false)
       .build();
-   
+    
     actionCell.setDataValidation(rule);
-   
-    // Set default value jika masih kosong
+    
+    // Set default value jika kosong
     if (!actionCell.getValue()) {
       actionCell.setValue('Leads');
     }
-   
+    
     return;
   }
 
-
+  // ===========================
+  // KIRIM KE WEBHOOK SAAT PURCHASE
+  // ===========================
   if (col === COL_ACTION && range.getValue() === "Purchase") {
-
-
     const lock = LockService.getScriptLock();
-    lock.waitLock(3000);
-
-
+    
     try {
-
+      lock.waitLock(3000);
 
       const statusCell = sheet.getRange(row, COL_STATUS);
-
 
       // Cegah double kirim jika sudah ada status
       const currentStatus = statusCell.getValue();
@@ -130,13 +128,11 @@ function onEditHandler(e) {
         return;
       }
 
-
+      // Kirim ke webhook
       const result = sendToWebhook(row, sheet);
 
-
-      // 🔹 Parse JSON response dan ambil message
+      // Parse response message
       let displayMessage = result.body;
-     
       try {
         const jsonResponse = JSON.parse(result.body);
         displayMessage = jsonResponse.message || result.body;
@@ -144,40 +140,29 @@ function onEditHandler(e) {
         displayMessage = result.body;
       }
 
-
+      // Update status dan waktu
       sheet.getRange(row, COL_STATUS).setValue(displayMessage);
-const timeCell = sheet.getRange(row, COL_TIME);
-timeCell.setValue(new Date());
-timeCell.setNumberFormat('HH:mm:ss');
-
+      
+      const timeCell = sheet.getRange(row, COL_TIME);
+      timeCell.setValue(new Date());
+      timeCell.setNumberFormat('HH:mm:ss');
 
     } catch (err) {
-
-
-      sheet.getRange(row, COL_STATUS)
-           .setValue("ERROR: " + err.message);
-
-
+      sheet.getRange(row, COL_STATUS).setValue("ERROR: " + err.message);
     } finally {
-
-
       lock.releaseLock();
-
-
     }
   }
 }
 
-
+// ===========================
+// SEND DATA TO WEBHOOK
+// ===========================
 function sendToWebhook(row, sheet) {
-
-
   const WEBHOOK_URL = "https://n8n-wexrffsqeapb.sate.sumopod.my.id/webhook/97a83226-82a7-498f-b05d-897d2651b62f";
 
-
-  // Ambil data row yang diedit (A-N saja, 14 kolom)
+  // Ambil data dari row (kolom A-N)
   const rowData = sheet.getRange(row, 1, 1, 14).getValues()[0];
-
 
   const [
     payload,
@@ -196,21 +181,19 @@ function sendToWebhook(row, sheet) {
     waktuCapi
   ] = rowData;
 
-
+  // Ambil Pixel ID dan Access Token dari kolom P2 dan Q2
   const pixelId = sheet.getRange('P2').getValue();
   const accessToken = sheet.getRange('Q2').getValue();
 
-
+  // Info pengirim
   const senderEmail = Session.getActiveUser().getEmail();
-
-
   const sentAt = Utilities.formatDate(
     new Date(),
     Session.getScriptTimeZone(),
     'yyyy-MM-dd HH:mm:ss'
   );
 
-
+  // Buat payload untuk webhook
   const body = {
     sender_email: senderEmail,
     sent_at: sentAt,
@@ -229,7 +212,7 @@ function sendToWebhook(row, sheet) {
     access_token: accessToken
   };
 
-
+  // Konfigurasi request
   const options = {
     method: "post",
     contentType: "application/json",
@@ -237,12 +220,10 @@ function sendToWebhook(row, sheet) {
     muteHttpExceptions: true
   };
 
-
   try {
     const response = UrlFetchApp.fetch(WEBHOOK_URL, options);
     const statusCode = response.getResponseCode();
     const responseBody = response.getContentText();
-
 
     if (statusCode === 200) {
       try {
@@ -264,9 +245,7 @@ function sendToWebhook(row, sheet) {
       };
     }
 
-
   } catch (err) {
     throw new Error(err.message);
   }
 }
-
