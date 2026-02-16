@@ -1,0 +1,234 @@
+function doPost(e) {
+  const ss = SpreadsheetApp.openById(
+    "GANTI DENGAN ID GOOGLE SHEET ANDA"
+  );
+  let sheet = ss.getSheetByName("Data Order");
+  if (!sheet) sheet = ss.insertSheet("Data Order");
+
+  if (!e) {
+    return ContentService.createTextOutput("No Data");
+  }
+
+  let p = {};
+
+  if (e.postData && e.postData.contents) {
+    try {
+      p = JSON.parse(e.postData.contents);
+    } catch (err) {
+      p = e.parameter || {};
+    }
+  } else {
+    p = e.parameter || {};
+  }
+
+  const orderId = p.order_id || "NO-ORDER-ID";
+  const newRow = sheet.getLastRow() + 1;
+
+  
+  const waktuOrder = new Date();
+
+  sheet.getRange(newRow, 1, 1, 14).setValues([[  
+    JSON.stringify(p),
+    waktuOrder,        
+    orderId,
+    p.nama || "",
+    p.email || "",
+    p.whatsapp || "",
+    p.wa_link || "",
+    "",  // Kolom H (product)
+    "",  // Kolom I (harga_barang)
+    "",  // Kolom J (value)
+    "",  // Kolom K (quantity)
+    "",  // Kolom L (action) 
+    "",  // Kolom M (status)
+    ""   // Kolom N (time)
+  ]]);
+
+  
+  const waktuCell = sheet.getRange(newRow, 2);
+  waktuCell.setNumberFormat('yyyy-MM-dd HH:mm:ss');
+
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      status: "success",
+      order_id: orderId,
+      waktu_order: Utilities.formatDate(
+        waktuOrder,
+        Session.getScriptTimeZone(),
+        'yyyy-MM-dd HH:mm:ss'
+      )
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function onEditHandler(e) {
+  
+  if (!e) return;
+
+  const sheet = e.source.getActiveSheet();
+  if (sheet.getName() !== 'Data Order') return;
+
+  const range = e.range;
+  const row = range.getRow();
+  const col = range.getColumn();
+
+  if (row === 1) return; 
+
+  const COL_PRODUCT = 8;   // H
+  const COL_ACTION = 12;   // L 
+  const COL_STATUS = 13;   // M 
+  const COL_TIME = 14;     // N 
+
+  if (col === COL_PRODUCT && range.getValue()) {
+    
+    const actionCell = sheet.getRange(row, COL_ACTION);
+    
+    const rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(['Leads', 'Purchase'], true)
+      .setAllowInvalid(false)
+      .build();
+    
+    actionCell.setDataValidation(rule);
+    
+    // Set default value jika masih kosong
+    if (!actionCell.getValue()) {
+      actionCell.setValue('Leads');
+    }
+    
+    return;
+  }
+
+  if (col === COL_ACTION && range.getValue() === "Purchase") {
+
+    const lock = LockService.getScriptLock();
+    lock.waitLock(3000);
+
+    try {
+
+      const statusCell = sheet.getRange(row, COL_STATUS);
+
+      // Cegah double kirim jika sudah ada status
+      const currentStatus = statusCell.getValue();
+      if (currentStatus && currentStatus.toString().trim() !== "") {
+        return;
+      }
+
+      const result = sendToWebhook(row, sheet);
+
+      // 🔹 Parse JSON response dan ambil message
+      let displayMessage = result.body;
+      
+      try {
+        const jsonResponse = JSON.parse(result.body);
+        displayMessage = jsonResponse.message || result.body;
+      } catch (parseError) {
+        displayMessage = result.body;
+      }
+
+      sheet.getRange(row, COL_STATUS).setValue(displayMessage);
+      const timeCell = sheet.getRange(row, COL_TIME);
+      timeCell.setValue(new Date());
+      timeCell.setNumberFormat('HH:mm:ss');
+
+    } catch (err) {
+
+      sheet.getRange(row, COL_STATUS)
+           .setValue("ERROR: " + err.message);
+
+    } finally {
+
+      lock.releaseLock();
+
+    }
+  }
+}
+
+function sendToWebhook(row, sheet) {
+
+  const WEBHOOK_URL = "https://n8n-wexrffsqeapb.sate.sumopod.my.id/webhook/97a83226-82a7-498f-b05d-897d2651b62f";
+
+  // Ambil data row yang diedit (A-N saja, 14 kolom)
+  const rowData = sheet.getRange(row, 1, 1, 14).getValues()[0];
+
+  const [
+    payload,
+    waktuOrder,
+    orderId,
+    nama,
+    email,
+    whatsapp,
+    followUp,
+    product,
+    hargaBarang,
+    value,
+    quantity,
+    action,
+    status,
+    waktuCapi
+  ] = rowData;
+
+  const pixelId = sheet.getRange('P2').getValue();
+  const accessToken = sheet.getRange('Q2').getValue();
+
+  const senderEmail = Session.getActiveUser().getEmail();
+
+  const sentAt = Utilities.formatDate(
+    new Date(),
+    Session.getScriptTimeZone(),
+    'yyyy-MM-dd HH:mm:ss'
+  );
+
+  const body = {
+    sender_email: senderEmail,
+    sent_at: sentAt,
+    payload,
+    waktu_order: waktuOrder,
+    order_id: orderId,  
+    nama,
+    email,
+    whatsapp,
+    follow_up: followUp,
+    product,
+    harga_barang: hargaBarang,
+    value,
+    quantity,
+    pixel_id: pixelId,
+    access_token: accessToken
+  };
+
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(WEBHOOK_URL, options);
+    const statusCode = response.getResponseCode();
+    const responseBody = response.getContentText();
+
+    if (statusCode === 200) {
+      try {
+        const result = JSON.parse(responseBody);
+        return {
+          code: statusCode,
+          body: result.message || responseBody
+        };
+      } catch (parseError) {
+        return {
+          code: statusCode,
+          body: responseBody
+        };
+      }
+    } else {
+      return {
+        code: statusCode,
+        body: responseBody
+      };
+    }
+
+  } catch (err) {
+    throw new Error(err.message);
+  }
+}
