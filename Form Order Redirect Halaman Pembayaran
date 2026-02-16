@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Form Data Customer</title>
+
+<style>
+.customer-form-wrapper *{
+  box-sizing:border-box;
+}
+
+.customer-form-wrapper{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+  background:#ffffff;
+}
+
+.customer-form-wrapper .form-card{
+  padding:16px;
+  max-width:480px;
+  margin:auto;
+}
+
+.customer-form-wrapper h2{
+  margin:0 0 4px;
+  font-size:1.4rem;
+}
+
+.customer-form-wrapper p{
+  margin:0 0 20px;
+  color:#6b7280;
+  font-size:.9rem;
+}
+
+.customer-form-wrapper .field{
+  position:relative;
+  margin-bottom:14px;
+}
+
+.customer-form-wrapper .field input{
+  width:100%;
+  padding:14px;
+  border-radius:8px;
+  border:1px solid #e5e7eb;
+  font-size:1rem;
+  outline:none;
+}
+
+.customer-form-wrapper .field label{
+  position:absolute;
+  left:14px;
+  top:50%;
+  transform:translateY(-50%);
+  background:#fff;
+  padding:0 6px;
+  color:#9ca3af;
+  font-size:.85rem;
+  pointer-events:none;
+  transition:.2s;
+}
+
+.customer-form-wrapper .field input:focus + label,
+.customer-form-wrapper .field input:not(:placeholder-shown) + label{
+  top:-8px;
+  font-size:.7rem;
+  color:#111827;
+}
+
+.customer-form-wrapper button{
+  width:100%;
+  padding:15px;
+  border:none;
+  border-radius:8px;
+  background:#111827;
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.customer-form-wrapper button.loading{
+  opacity:.8;
+  pointer-events:none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="customer-form-wrapper">
+  <div class="form-card">
+    <h2>Form Order</h2>
+    <p>Lengkapi data berikut</p>
+
+    <form id="leadForm">
+      <div class="field">
+        <input type="text" name="nama" required placeholder=" ">
+        <label>Nama Lengkap</label>
+      </div>
+
+      <div class="field">
+        <input type="email" name="email" required placeholder=" ">
+        <label>Email</label>
+      </div>
+
+      <div class="field">
+        <input
+          id="wa"
+          type="tel"
+          name="whatsapp"
+          required
+          inputmode="numeric"
+          value="08"
+          pattern="08[0-9]{8,11}">
+        <label>WhatsApp</label>
+      </div>
+
+      <button type="submit" id="submitBtn">Order Sekarang</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function buildWaLink(number){
+  let wa = number.replace(/\D/g,'');
+  if (wa.startsWith('0')) wa = wa.substring(1);
+  if (!wa.startsWith('62')) wa = '62' + wa;
+  return `https://wa.me/${wa}`;
+}
+
+// ===== FUNGSI UNTUK MENDAPATKAN IP CLIENT =====
+async function getClientIp() {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    const data = await res.json();
+    return data.ip;
+  } catch (error) {
+    console.error('Gagal mengambil IP:', error);
+    return null;
+  }
+}
+
+function getFbp() {
+  const match = document.cookie.match(/_fbp=([^;]+)/);
+  return match ? match[1] : null;
+}
+
+const form = document.getElementById('leadForm');
+const wa = document.getElementById('wa');
+const namaInput = form.querySelector('input[name="nama"]');
+
+
+wa.value = '08';
+
+wa.addEventListener('keydown', e => {
+  const pos = wa.selectionStart;
+
+  if ((e.key === 'Backspace' && pos <= 2) ||
+      (e.key === 'Delete' && pos < 2)) {
+    e.preventDefault();
+  }
+
+  if (!/[0-9]/.test(e.key) &&
+      !['Backspace','Delete','ArrowLeft','ArrowRight','Tab'].includes(e.key)) {
+    e.preventDefault();
+  }
+});
+
+wa.addEventListener('paste', e => {
+  e.preventDefault();
+  let paste = (e.clipboardData || window.clipboardData).getData('text');
+  paste = paste.replace(/\D/g,'');
+  if (!paste.startsWith('08')) paste = '08' + paste;
+  wa.value = paste;
+});
+
+function getFbclid(){
+  return new URLSearchParams(window.location.search).get('fbclid');
+}
+
+function getFbc(){
+  const fbclid = getFbclid();
+  if(!fbclid) return null;
+  return `fb.1.${Date.now()}.${fbclid}`;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const btn = document.getElementById('submitBtn');
+  btn.classList.add('loading');
+  btn.textContent = 'Mengirim...';
+
+  
+  const orderId = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
+
+  
+  const nama = form.nama.value.trim();
+  const email = form.email.value.trim();
+  const whatsapp = form.whatsapp.value.trim();
+  
+  const waNumber = form.whatsapp.value;
+  const waLink = buildWaLink(waNumber);
+
+  // Ambil IP Client
+  const clientIp = await getClientIp();
+  
+  // Ambil Facebook cookies
+  const fbp = getFbp();
+  const fbc = getFbc();
+
+  // Debug log
+  console.log('=== FACEBOOK TRACKING DATA ===');
+  console.log('Order ID (Generated):', orderId); 
+  console.log('Client IP:', clientIp);
+  console.log('FBP Cookie:', fbp);
+  console.log('FBC (generated):', fbc);
+  console.log('FBCLID (from URL):', getFbclid());
+  console.log('==============================');
+
+  
+  const data = new URLSearchParams({
+    order_id: orderId,          
+    nama: nama,
+    email: email,
+    whatsapp: whatsapp,
+    wa_link: waLink,
+    fbclid: getFbclid() || '',
+    fbc: fbc || '',
+    fbp: fbp || '',
+    client_user_agent: navigator.userAgent,
+    event_source_url: window.location.href,
+    client_ip_address: clientIp || ''
+  });
+
+  // ISI URL GOOGLE SHEET ANDA
+  fetch(
+    'GANTI URL GOOGLE SHEET ANDA',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: data.toString()
+    }
+  );
+
+  btn.textContent = 'Berhasil ✔';
+
+  setTimeout(() => {
+    
+    console.log('=== ORDER DATA ===');
+    console.log('Order ID (Redirect):', orderId); 
+    console.log('Nama:', nama);
+    console.log('Email:', email);
+    console.log('WhatsApp:', whatsapp);
+    console.log('==================');
+
+    const paymentUrl = new URL('GANTI URL HALAMAN PEMBAYARAN ANDA');
+    paymentUrl.searchParams.set('order_id', orderId); 
+    paymentUrl.searchParams.set('nama', nama);
+    paymentUrl.searchParams.set('email', email);
+    paymentUrl.searchParams.set('whatsapp', whatsapp);
+
+    console.log('Redirect URL:', paymentUrl.toString());
+
+    form.reset();
+    wa.value = '08';
+
+    window.location.href = paymentUrl.toString();
+  }, 800);
+});
+
+</script>
+
+</body>
+</html>
+
+
+
